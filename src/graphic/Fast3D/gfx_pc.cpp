@@ -1373,12 +1373,12 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bo
 
         switch (rsp.geometry_mode & G_CULL_BOTH) {
             case G_CULL_FRONT:
-                if (cross <= 0) {
+                if (CVarGetInteger("gMirroredWorld", 0) ? cross >= 0 : cross <= 0) {
                     return;
                 }
                 break;
             case G_CULL_BACK:
-                if (cross >= 0) {
+                if (CVarGetInteger("gMirroredWorld", 0) ? cross <= 0 : cross >= 0) {
                     return;
                 }
                 break;
@@ -2257,12 +2257,8 @@ static void gfx_dp_texture_rectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
     // dsdx and dtdy are S5.10
     // lrx, lry, ulx, uly are U10.2
     // lrs, lrt are S10.5
-    if (flip) {
-        dsdx = -dsdx;
-        dtdy = -dtdy;
-    }
-    int16_t width = !flip ? lrx - ulx : lry - uly;
-    int16_t height = !flip ? lry - uly : lrx - ulx;
+    int16_t width = lrx - ulx;
+    int16_t height = lry - uly;
     float lrs = ((uls << 7) + dsdx * width) >> 7;
     float lrt = ((ult << 7) + dtdy * height) >> 7;
 
@@ -2270,20 +2266,26 @@ static void gfx_dp_texture_rectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
     struct LoadedVertex* ll = &rsp.loaded_vertices[MAX_VERTICES + 1];
     struct LoadedVertex* lr = &rsp.loaded_vertices[MAX_VERTICES + 2];
     struct LoadedVertex* ur = &rsp.loaded_vertices[MAX_VERTICES + 3];
-    ul->u = uls;
-    ul->v = ult;
-    lr->u = lrs;
-    lr->v = lrt;
-    if (!flip) {
-        ll->u = uls;
+    if (flip) {
+        // Flip the texture horizontally
+        ul->u = lrs;
+        ul->v = ult;
+        ll->u = lrs;
         ll->v = lrt;
-        ur->u = lrs;
+        lr->u = uls;
+        lr->v = lrt;
+        ur->u = uls;
         ur->v = ult;
     } else {
-        ll->u = lrs;
-        ll->v = ult;
-        ur->u = uls;
-        ur->v = lrt;
+        // No horizontal flip
+        ul->u = uls;
+        ul->v = ult;
+        ll->u = uls;
+        ll->v = lrt;
+        lr->u = lrs;
+        lr->v = lrt;
+        ur->u = lrs;
+        ur->v = ult;
     }
 
     uint8_t saved_tile = rdp.first_tile_index;
@@ -2402,7 +2404,7 @@ static void gfx_s2dex_bg_copy(uObjBg* bg) {
     gfx_dp_set_tile_size(G_TX_RENDERTILE, 0, 0, bg->b.imageW, bg->b.imageH);
     gfx_dp_texture_rectangle(bg->b.frameX, bg->b.frameY, bg->b.frameX + bg->b.imageW - 4,
                              bg->b.frameY + bg->b.imageH - 4, G_TX_RENDERTILE, bg->b.imageX << 3, bg->b.imageY << 3,
-                             4 << 10, 1 << 10, false);
+                             4 << 10, 1 << 10, bg->b.imageFlip);
 }
 
 static inline void* seg_addr(uintptr_t w1) {
