@@ -2268,8 +2268,12 @@ static void gfx_dp_texture_rectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
     // dsdx and dtdy are S5.10
     // lrx, lry, ulx, uly are U10.2
     // lrs, lrt are S10.5
-    int16_t width = lrx - ulx;
-    int16_t height = lry - uly;
+    if (flip) {
+        dsdx = -dsdx;
+        dtdy = -dtdy;
+    }
+    int16_t width = !flip ? lrx - ulx : lry - uly;
+    int16_t height = !flip ? lry - uly : lrx - ulx;
     float lrs = ((uls << 7) + dsdx * width) >> 7;
     float lrt = ((ult << 7) + dtdy * height) >> 7;
 
@@ -2277,26 +2281,20 @@ static void gfx_dp_texture_rectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
     struct LoadedVertex* ll = &rsp.loaded_vertices[MAX_VERTICES + 1];
     struct LoadedVertex* lr = &rsp.loaded_vertices[MAX_VERTICES + 2];
     struct LoadedVertex* ur = &rsp.loaded_vertices[MAX_VERTICES + 3];
-    if (flip) {
-        // Flip the texture horizontally
-        ul->u = lrs;
-        ul->v = ult;
-        ll->u = lrs;
-        ll->v = lrt;
-        lr->u = uls;
-        lr->v = lrt;
-        ur->u = uls;
-        ur->v = ult;
-    } else {
-        // No horizontal flip
-        ul->u = uls;
-        ul->v = ult;
+    ul->u = uls;
+    ul->v = ult;
+    lr->u = lrs;
+    lr->v = lrt;
+    if (!flip) {
         ll->u = uls;
         ll->v = lrt;
-        lr->u = lrs;
-        lr->v = lrt;
         ur->u = lrs;
         ur->v = ult;
+    } else {
+        ll->u = lrs;
+        ll->v = ult;
+        ur->u = uls;
+        ur->v = lrt;
     }
 
     uint8_t saved_tile = rdp.first_tile_index;
