@@ -112,12 +112,12 @@ void Controller::ProcessStick(int8_t& x, int8_t& y, float deadzoneX, float deadz
         len = (len - deadzoneX) * MAX_AXIS_RANGE / (MAX_AXIS_RANGE - deadzoneX) / len;
     }
 
+    ux *= len;
+    uy *= len;
+
     if (useEssAdapter) {
         ModifyForEss(ux, uy, inputEssMin, inputEssMax, essMin, essMax);
     }
-
-    ux *= len;
-    uy *= len;
 
     // bound diagonals to an octagonal range {-69 ... +69}
     if (ux != 0.0 && uy != 0.0) {
@@ -249,9 +249,10 @@ void Controller::ModifyForEss(double &ux, double &uy, int32_t inputEssMin, int32
     double ratio = (distanceFromCenter / (double)inputEssMax);
     double essDistance = std::lerp((double)essMin, (double)essMax, ratio);
     double angle = 0.0;
-    if (ux < MINIMUM_RADIUS_TO_MAP_NOTCH) {
+    double epsilon = std::numeric_limits<double>::epsilon();
+    if (ux < epsilon) {
         angle = 90.0 * (M_PI / 180) ;
-    } else if (uy < MINIMUM_RADIUS_TO_MAP_NOTCH) {
+    } else if (uy < epsilon) {
         angle = 0.0 * (M_PI / 180);
     } else {
         angle = std::atan(uy / ux);
