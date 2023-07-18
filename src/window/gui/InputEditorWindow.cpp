@@ -242,7 +242,7 @@ void InputEditorWindow::DrawControllerSchema() {
         ImGui::PopItemWidth();
         ImGui::EndChild();
 
-        ImGui::BeginChild("##MSInput0", ImVec2(90, 50), false);
+        ImGui::BeginChild("##MSInput0", ImVec2(150, 50), false);
         ImGui::Text("Ess Adapter Enabled");
         ImGui::PushItemWidth(80);
         if (ImGui::Checkbox("##MDZone0", &profile->UseEssAdapter)) {
@@ -251,8 +251,8 @@ void InputEditorWindow::DrawControllerSchema() {
         ImGui::PopItemWidth();
         ImGui::EndChild();
 
-        ImGui::BeginChild("##MSInput1", ImVec2(90, 50), false);
-        ImGui::Text("Analog Threshold");
+        ImGui::BeginChild("##MSInput1", ImVec2(150, 50), false);
+        ImGui::Text("Analog Input Min");
         ImGui::PushItemWidth(80);
         if (ImGui::InputInt("##MDZone1", &profile->InputEssMin, 1.0f, 0.0f)) {
             Context::GetInstance()->GetControlDeck()->SaveSettings();
@@ -260,8 +260,8 @@ void InputEditorWindow::DrawControllerSchema() {
         ImGui::PopItemWidth();
         ImGui::EndChild();
 
-        ImGui::BeginChild("##MSInput2", ImVec2(90, 50), false);
-        ImGui::Text("Analog Max");
+        ImGui::BeginChild("##MSInput2", ImVec2(150, 50), false);
+        ImGui::Text("Analog Input Max");
         ImGui::PushItemWidth(80);
         if (ImGui::InputInt("##MDZone2", &profile->InputEssMax, 1.0f, 0.0f)) {
             Context::GetInstance()->GetControlDeck()->SaveSettings();
