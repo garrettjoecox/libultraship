@@ -10,6 +10,7 @@
 #include <spdlog/spdlog.h>
 
 #define M_TAU 6.2831853071795864769252867665590057 // 2 * pi
+#define M_PI 3.14159265358979323846                // pi
 #define MINIMUM_RADIUS_TO_MAP_NOTCH 0.9
 
 namespace LUS {
@@ -90,7 +91,9 @@ int8_t Controller::ReadStick(int32_t portIndex, Stick stick, Axis axis) {
     return 0;
 }
 
-void Controller::ProcessStick(int8_t& x, int8_t& y, float deadzoneX, float deadzoneY, int32_t notchProxmityThreshold) {
+void Controller::ProcessStick(int8_t& x, int8_t& y, float deadzoneX, float deadzoneY, int32_t notchProxmityThreshold,
+                              bool useEssAdapter, int32_t inputEssMin, int32_t inputEssMax, int32_t essMin,
+                              int32_t essMax) {
     auto ux = fabs(x);
     auto uy = fabs(y);
 
@@ -108,6 +111,11 @@ void Controller::ProcessStick(int8_t& x, int8_t& y, float deadzoneX, float deadz
     } else {
         len = (len - deadzoneX) * MAX_AXIS_RANGE / (MAX_AXIS_RANGE - deadzoneX) / len;
     }
+
+    if (useEssAdapter) {
+        ModifyForEss(ux, uy, inputEssMin, inputEssMax, essMin, essMax);
+    }
+
     ux *= len;
     uy *= len;
 
@@ -160,9 +168,11 @@ void Controller::ReadToPad(OSContPad* pad, int32_t portIndex) {
 
     auto profile = GetProfile(portIndex);
     ProcessStick(leftStickX, leftStickY, profile->AxisDeadzones[0], profile->AxisDeadzones[1],
-                 profile->NotchProximityThreshold);
+                 profile->NotchProximityThreshold, profile->UseEssAdapter, profile->InputEssMin, profile->InputEssMax,
+                 profile->EssMin, profile->EssMax);
     ProcessStick(rightStickX, rightStickY, profile->AxisDeadzones[2], profile->AxisDeadzones[3],
-                 profile->NotchProximityThreshold);
+                 profile->NotchProximityThreshold, profile->UseEssAdapter, profile->InputEssMin, profile->InputEssMax,
+                 profile->EssMin, profile->EssMax);
 
     if (pad == nullptr) {
         return;
@@ -225,6 +235,30 @@ int8_t& Controller::GetRightStickX(int32_t portIndex) {
 
 int8_t& Controller::GetRightStickY(int32_t portIndex) {
     return mButtonData[portIndex]->RightStickY;
+}
+
+void Controller::ModifyForEss(double &ux, double &uy, int32_t inputEssMin, int32_t inputEssMax, int32_t essMin,
+                                 int32_t essMax) {
+    double distanceFromCenter = std::sqrt(ux * ux + uy * uy);
+
+    if (distanceFromCenter < inputEssMin
+        || distanceFromCenter > inputEssMax) {
+        return;
+    }
+
+    double ratio = (distanceFromCenter / (double)inputEssMax);
+    double essDistance = std::lerp((double)essMin, (double)essMax, ratio);
+    double angle = 0.0;
+    if (ux < MINIMUM_RADIUS_TO_MAP_NOTCH) {
+        angle = 90.0 * (M_PI / 180) ;
+    } else if (uy < MINIMUM_RADIUS_TO_MAP_NOTCH) {
+        angle = 0.0 * (M_PI / 180);
+    } else {
+        angle = std::atan(uy / ux);
+    }
+
+    ux = std::cos(angle) * essDistance;
+    uy = std::sin(angle) * essDistance;
 }
 
 int32_t& Controller::GetPressedButtons(int32_t portIndex) {

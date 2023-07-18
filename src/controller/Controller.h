@@ -27,6 +27,11 @@ struct DeviceProfile {
     bool UseGyro = false;
     float RumbleStrength = 1.0f;
     int32_t NotchProximityThreshold = 0;
+    bool UseEssAdapter = 0;
+    int32_t InputEssMin = 0;
+    int32_t InputEssMax = 0;
+    int32_t EssMin = 0;
+    int32_t EssMax = 0;
     std::unordered_map<int32_t, float> AxisDeadzones;
     std::unordered_map<int32_t, float> AxisMinimumPress;
     std::unordered_map<int32_t, float> GyroData;
@@ -58,6 +63,8 @@ class Controller {
     int8_t& GetLeftStickY(int32_t portIndex);
     int8_t& GetRightStickX(int32_t portIndex);
     int8_t& GetRightStickY(int32_t portIndex);
+    void ModifyForEss(double &ux, double &uy, int32_t analogThreshold, int32_t analogMax, int32_t essMin,
+                         int32_t essMax);
     int32_t& GetPressedButtons(int32_t portIndex);
     float& GetGyroX(int32_t portIndex);
     float& GetGyroY(int32_t portIndex);
@@ -73,7 +80,7 @@ class Controller {
     std::string mControllerName = "Unknown";
 
     int8_t ReadStick(int32_t portIndex, Stick stick, Axis axis);
-    void ProcessStick(int8_t& x, int8_t& y, float deadzoneX, float deadzoneY, int32_t notchProxmityThreshold);
+    void ProcessStick(int8_t& x, int8_t& y, float deadzoneX, float deadzoneY, int32_t notchProxmityThreshold, bool useEssAdapter, int32_t analogMin, int32_t analogMax, int32_t essMin, int32_t essMax);
     double GetClosestNotch(double angle, double approximationThreshold);
 
   private:
