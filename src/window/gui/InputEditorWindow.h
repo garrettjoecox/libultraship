@@ -2,6 +2,7 @@
 
 #include "stdint.h"
 #include "window/gui/GuiWindow.h"
+#include "../../controller/Controller.h"
 #include <ImGui/imgui.h>
 
 namespace LUS {
@@ -15,6 +16,7 @@ class InputEditorWindow : public GuiWindow {
     void DrawControllerSelect(int32_t currentPort);
     void DrawVirtualStick(const char* label, ImVec2 stick, float deadzone = 0);
     void DrawControllerSchema();
+    void DrawJoystickInterpolationZone(int& analogMin, int& analogMax, int& resultMin, int& resultMax, int index);
 
   protected:
     void InitElement() override;

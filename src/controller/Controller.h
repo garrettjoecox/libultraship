@@ -18,8 +18,26 @@ enum GyroData { DRIFT_X, DRIFT_Y, GYRO_SENSITIVITY };
 enum Stick { LEFT, RIGHT };
 enum Axis { X, Y };
 enum DeviceProfileVersion { DEVICE_PROFILE_VERSION_0 = 0, DEVICE_PROFILE_VERSION_1 = 1, DEVICE_PROFILE_VERSION_2 = 2 };
+enum InterpolationType { DEADZONE = 0, LINEAR = 1 };
 
 #define DEVICE_PROFILE_CURRENT_VERSION DEVICE_PROFILE_VERSION_2
+
+struct JoystickInterpolationData {
+    double AnalogMin;
+    double AnalogMax;
+    double ResultMin;
+    double ResultMax;
+    InterpolationType Interpolation;
+
+    JoystickInterpolationData(double analogMin, double analogMax, double resultMin, double resultMax,
+                              InterpolationType interpolation) {
+        AnalogMin = analogMin;
+        AnalogMax = analogMax;
+        ResultMin = resultMin;
+        ResultMax = resultMax;
+        Interpolation = interpolation;
+    }
+};
 
 struct DeviceProfile {
     int32_t Version = 0;
@@ -27,11 +45,11 @@ struct DeviceProfile {
     bool UseGyro = false;
     float RumbleStrength = 1.0f;
     int32_t NotchProximityThreshold = 0;
-    bool UseEssAdapter = 0;
-    int32_t InputEssMin = 0;
-    int32_t InputEssMax = 0;
-    int32_t EssMin = 0;
-    int32_t EssMax = 0;
+    bool UseJoystickInterpolation = false;
+    int NbJoystickInterpolaion = 0;
+    std::vector<int> JoystickInterpolation_Analog;
+    std::vector<int> JoystickInterpolation_Result;
+    std::vector<InterpolationType> JoystickInterpolation_Type;
     std::unordered_map<int32_t, float> AxisDeadzones;
     std::unordered_map<int32_t, float> AxisMinimumPress;
     std::unordered_map<int32_t, float> GyroData;
@@ -63,8 +81,6 @@ class Controller {
     int8_t& GetLeftStickY(int32_t portIndex);
     int8_t& GetRightStickX(int32_t portIndex);
     int8_t& GetRightStickY(int32_t portIndex);
-    void ModifyForEss(double &ux, double &uy, int32_t analogThreshold, int32_t analogMax, int32_t essMin,
-                         int32_t essMax);
     int32_t& GetPressedButtons(int32_t portIndex);
     float& GetGyroX(int32_t portIndex);
     float& GetGyroY(int32_t portIndex);
@@ -80,7 +96,8 @@ class Controller {
     std::string mControllerName = "Unknown";
 
     int8_t ReadStick(int32_t portIndex, Stick stick, Axis axis);
-    void ProcessStick(int8_t& x, int8_t& y, float deadzoneX, float deadzoneY, int32_t notchProxmityThreshold, bool useEssAdapter, int32_t analogMin, int32_t analogMax, int32_t essMin, int32_t essMax);
+    void ProcessStick(int8_t& x, int8_t& y, float deadzoneX, float deadzoneY, int32_t notchProxmityThreshold,
+                      bool useJoystickInterpolation, std::vector<int> analogs, std::vector<int> results);
     double GetClosestNotch(double angle, double approximationThreshold);
 
   private:
@@ -97,5 +114,10 @@ class Controller {
     std::unordered_map<int32_t, std::shared_ptr<DeviceProfile>> mProfiles;
     std::unordered_map<int32_t, std::shared_ptr<Buttons>> mButtonData = {};
     std::deque<OSContPad> mPadBuffer;
+
+    void ApplyJoystickInterpolation(double& ux, double& uy, std::vector<int> analogs, std::vector<int> results);
+    double CalculateInerpolationValue(double v, int analogMin, int analogMax, int resultMin, int resultMax,
+                                      InterpolationType interpolationType);
+    double CalculateLinearInterpolation(double v, int inputMin, int inputMax, int resultMin, int resultMax);
 };
 } // namespace LUS

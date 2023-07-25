@@ -213,79 +213,37 @@ void InputEditorWindow::DrawControllerSchema() {
         DrawVirtualStick("##MainVirtualStick",
                          ImVec2(backend->GetLeftStickX(mCurrentPort), backend->GetLeftStickY(mCurrentPort)),
                          profile->AxisDeadzones[0]);
-        ImGui::SameLine();
 
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 5);
+        if (!profile->UseJoystickInterpolation) {
+            ImGui::SameLine();
 
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 5);
 #ifdef __WIIU__
-        ImGui::BeginChild("##MSInput", ImVec2(90 * 2, 50 * 2), false);
+            ImGui::BeginChild("##MSInput", ImVec2(90 * 2, 50 * 2), false);
 #else
-        ImGui::BeginChild("##MSInput", ImVec2(90, 50), false);
+            ImGui::BeginChild("##MSInput", ImVec2(90, 50), false);
 #endif
-        ImGui::Text("Deadzone");
+            ImGui::Text("Deadzone");
 #ifdef __WIIU__
-        ImGui::PushItemWidth(80 * 2);
+            ImGui::PushItemWidth(80 * 2);
 #else
-        ImGui::PushItemWidth(80);
+            ImGui::PushItemWidth(80);
 #endif
-        // The window has deadzone per stick, so we need to
-        // set the deadzone for both left stick axes here
-        // SDL_CONTROLLER_AXIS_LEFTX: 0
-        // SDL_CONTROLLER_AXIS_LEFTY: 1
-        if (ImGui::InputFloat("##MDZone", &profile->AxisDeadzones[0], 1.0f, 0.0f, "%.0f")) {
-            if (profile->AxisDeadzones[0] < 0) {
-                profile->AxisDeadzones[0] = 0;
+            // The window has deadzone per stick, so we need to
+            // set the deadzone for both left stick axes here
+            // SDL_CONTROLLER_AXIS_LEFTX: 0
+            // SDL_CONTROLLER_AXIS_LEFTY: 1
+            if (ImGui::InputFloat("##MDZone", &profile->AxisDeadzones[0], 1.0f, 0.0f, "%.0f")) {
+                if (profile->AxisDeadzones[0] < 0) {
+                    profile->AxisDeadzones[0] = 0;
+                }
+                profile->AxisDeadzones[1] = profile->AxisDeadzones[0];
+                Context::GetInstance()->GetControlDeck()->SaveSettings();
             }
-            profile->AxisDeadzones[1] = profile->AxisDeadzones[0];
-            Context::GetInstance()->GetControlDeck()->SaveSettings();
+            ImGui::PopItemWidth();
+            ImGui::EndChild();
         }
-        ImGui::PopItemWidth();
-        ImGui::EndChild();
 
-        ImGui::BeginChild("##MSInput0", ImVec2(150, 50), false);
-        ImGui::Text("Ess Adapter Enabled");
-        ImGui::PushItemWidth(80);
-        if (ImGui::Checkbox("##MDZone0", &profile->UseEssAdapter)) {
-            Context::GetInstance()->GetControlDeck()->SaveSettings();
-        }
-        ImGui::PopItemWidth();
-        ImGui::EndChild();
-
-        ImGui::BeginChild("##MSInput1", ImVec2(150, 50), false);
-        ImGui::Text("Analog Input Min");
-        ImGui::PushItemWidth(80);
-        if (ImGui::InputInt("##MDZone1", &profile->InputEssMin, 1.0f, 0.0f)) {
-            Context::GetInstance()->GetControlDeck()->SaveSettings();
-        }
-        ImGui::PopItemWidth();
-        ImGui::EndChild();
-
-        ImGui::BeginChild("##MSInput2", ImVec2(150, 50), false);
-        ImGui::Text("Analog Input Max");
-        ImGui::PushItemWidth(80);
-        if (ImGui::InputInt("##MDZone2", &profile->InputEssMax, 1.0f, 0.0f)) {
-            Context::GetInstance()->GetControlDeck()->SaveSettings();
-        }
-        ImGui::PopItemWidth();
-        ImGui::EndChild();
-
-        ImGui::BeginChild("##MSInput3", ImVec2(90, 50), false);
-        ImGui::Text("ESS Min");
-        ImGui::PushItemWidth(80);
-        if (ImGui::InputInt("##MDZone3", &profile->EssMin, 1.0f, 0.0f)) {
-            Context::GetInstance()->GetControlDeck()->SaveSettings();
-        }
-        ImGui::PopItemWidth();
-        ImGui::EndChild();
-
-        ImGui::BeginChild("##MSInput4", ImVec2(90, 50), false);
-        ImGui::Text("ESS Max");
-        ImGui::PushItemWidth(80);
-        if (ImGui::InputInt("##MDZone4", &profile->EssMax, 1.0f, 0.0f)) {
-            Context::GetInstance()->GetControlDeck()->SaveSettings();
-        }
-        ImGui::PopItemWidth();
-        ImGui::EndChild();
     } else {
         ImGui::Dummy(ImVec2(0, 6));
     }
@@ -476,6 +434,71 @@ void InputEditorWindow::DrawControllerSchema() {
 
     ImGui::Dummy(ImVec2(0, 5));
     EndGroupPanel(isKeyboard ? 0.0f : 2.0f);
+
+    // Draw joystick interpolation
+    if (!isKeyboard) {
+        BeginGroupPanel("Joystick Interpolation", ImVec2(500, 1000));
+        cursorX = ImGui::GetCursorPosX() + 5;
+        ImGui::SetCursorPosX(cursorX);
+        if (ImGui::Checkbox("Use Joystick Interpolation", &profile->UseJoystickInterpolation)) {
+            Context::GetInstance()->GetControlDeck()->SaveSettings();
+        }
+        
+        if (profile->UseJoystickInterpolation) {
+            if (ImGui::Button("Add Interpolation Zone", ImVec2(200, 25))) {
+                if (profile->JoystickInterpolation_Analog.size() == 0) {
+                    profile->JoystickInterpolation_Analog.push_back(0);
+                    profile->JoystickInterpolation_Analog.push_back(85);
+                } else {
+                    profile->JoystickInterpolation_Analog.push_back(profile->JoystickInterpolation_Analog.back());
+                    profile->JoystickInterpolation_Analog.push_back(profile->JoystickInterpolation_Analog.back());
+                }
+
+                if (profile->JoystickInterpolation_Result.size() == 0) {
+                    profile->JoystickInterpolation_Result.push_back(0);
+                    profile->JoystickInterpolation_Result.push_back(85);
+                } else {
+                    profile->JoystickInterpolation_Result.push_back(profile->JoystickInterpolation_Result.back());
+                    profile->JoystickInterpolation_Result.push_back(profile->JoystickInterpolation_Result.back());
+                }
+
+                Context::GetInstance()->GetControlDeck()->SaveSettings();
+            }
+
+            auto analogSize = profile->JoystickInterpolation_Analog.size();
+            if (analogSize > 0)
+            {
+                for (int i = 0; i < analogSize - 1; i += 2) {
+                    DrawJoystickInterpolationZone(
+                        profile->JoystickInterpolation_Analog[i], profile->JoystickInterpolation_Analog[(i + 1)],
+                        profile->JoystickInterpolation_Result[i], profile->JoystickInterpolation_Result[(i + 1)], (i / 2) + 1);
+                }
+            }
+        }
+
+        ImGui::Dummy(ImVec2(0, 5));
+        EndGroupPanel(2.0f);
+    }
+}
+
+void InputEditorWindow::DrawJoystickInterpolationZone(int& analogMin, int& analogMax, int& resultMin, int& resultMax,
+                                                      int index) {
+    BeginGroupPanel(std::format("Joystick zone {}", index).c_str(), ImVec2(500, 200));
+    if (ImGui::InputInt(std::format("Analog Min {}", index).c_str(), &analogMin)) {
+        Context::GetInstance()->GetControlDeck()->SaveSettings();
+    }
+    ImGui::SameLine();
+    if (ImGui::InputInt(std::format("Result Min {}", index).c_str(), &resultMin)) { 
+        Context::GetInstance()->GetControlDeck()->SaveSettings();
+    }
+    if (ImGui::InputInt(std::format("Analog Max {}", index).c_str(), &analogMax)) {
+        Context::GetInstance()->GetControlDeck()->SaveSettings();
+    }
+    ImGui::SameLine();
+    if (ImGui::InputInt(std::format("Result Max {}", index).c_str(), &resultMax)) {
+        Context::GetInstance()->GetControlDeck()->SaveSettings();    
+    }
+    EndGroupPanel(2.0f);
 }
 
 void InputEditorWindow::UpdateElement() {
@@ -497,7 +520,7 @@ void InputEditorWindow::DrawElement() {
     ImVec2 maxSize = ImVec2(1200 * 2, 330 * 2);
 #else
     ImVec2 minSize = ImVec2(641, 250);
-    ImVec2 maxSize = ImVec2(1200, 330);
+    ImVec2 maxSize = ImVec2(1200, 600);
 #endif
 
     ImGui::SetNextWindowSizeConstraints(minSize, maxSize);

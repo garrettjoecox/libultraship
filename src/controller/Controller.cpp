@@ -92,8 +92,7 @@ int8_t Controller::ReadStick(int32_t portIndex, Stick stick, Axis axis) {
 }
 
 void Controller::ProcessStick(int8_t& x, int8_t& y, float deadzoneX, float deadzoneY, int32_t notchProxmityThreshold,
-                              bool useEssAdapter, int32_t inputEssMin, int32_t inputEssMax, int32_t essMin,
-                              int32_t essMax) {
+                              bool useJoystickInterpolation, std::vector<int> analogs, std::vector<int> results) {
     auto ux = fabs(x);
     auto uy = fabs(y);
 
@@ -102,21 +101,21 @@ void Controller::ProcessStick(int8_t& x, int8_t& y, float deadzoneX, float deadz
         SPDLOG_TRACE("Invalid Deadzone configured. Up/Down was {} and Left/Right is {}", deadzoneY, deadzoneX);
     }
 
-    // create scaled circular dead-zone
-    auto len = sqrt(ux * ux + uy * uy);
-    if (len < deadzoneX) {
-        len = 0;
-    } else if (len > MAX_AXIS_RANGE) {
-        len = MAX_AXIS_RANGE / len;
+    if (useJoystickInterpolation) {
+        ApplyJoystickInterpolation(ux, uy, analogs, results);
     } else {
-        len = (len - deadzoneX) * MAX_AXIS_RANGE / (MAX_AXIS_RANGE - deadzoneX) / len;
-    }
+        // create scaled circular dead-zone
+        auto len = sqrt(ux * ux + uy * uy);
+        if (len < deadzoneX) {
+            len = 0;
+        } else if (len > MAX_AXIS_RANGE) {
+            len = MAX_AXIS_RANGE / len;
+        } else {
+            len = (len - deadzoneX) * MAX_AXIS_RANGE / (MAX_AXIS_RANGE - deadzoneX) / len;
+        }
 
-    ux *= len;
-    uy *= len;
-
-    if (useEssAdapter) {
-        ModifyForEss(ux, uy, inputEssMin, inputEssMax, essMin, essMax);
+        ux *= len;
+        uy *= len;
     }
 
     // bound diagonals to an octagonal range {-69 ... +69}
@@ -168,11 +167,11 @@ void Controller::ReadToPad(OSContPad* pad, int32_t portIndex) {
 
     auto profile = GetProfile(portIndex);
     ProcessStick(leftStickX, leftStickY, profile->AxisDeadzones[0], profile->AxisDeadzones[1],
-                 profile->NotchProximityThreshold, profile->UseEssAdapter, profile->InputEssMin, profile->InputEssMax,
-                 profile->EssMin, profile->EssMax);
+                 profile->NotchProximityThreshold, profile->UseJoystickInterpolation,
+                 profile->JoystickInterpolation_Analog, profile->JoystickInterpolation_Result);
     ProcessStick(rightStickX, rightStickY, profile->AxisDeadzones[2], profile->AxisDeadzones[3],
-                 profile->NotchProximityThreshold, profile->UseEssAdapter, profile->InputEssMin, profile->InputEssMax,
-                 profile->EssMin, profile->EssMax);
+                 profile->NotchProximityThreshold, profile->UseJoystickInterpolation,
+                 profile->JoystickInterpolation_Analog, profile->JoystickInterpolation_Result);
 
     if (pad == nullptr) {
         return;
@@ -237,31 +236,6 @@ int8_t& Controller::GetRightStickY(int32_t portIndex) {
     return mButtonData[portIndex]->RightStickY;
 }
 
-void Controller::ModifyForEss(double &ux, double &uy, int32_t inputEssMin, int32_t inputEssMax, int32_t essMin,
-                                 int32_t essMax) {
-    double distanceFromCenter = std::sqrt(ux * ux + uy * uy);
-
-    if (distanceFromCenter < inputEssMin
-        || distanceFromCenter > inputEssMax) {
-        return;
-    }
-
-    double ratio = (distanceFromCenter / (double)inputEssMax);
-    double essDistance = std::lerp((double)essMin, (double)essMax, ratio);
-    double angle = 0.0;
-    double epsilon = std::numeric_limits<double>::epsilon();
-    if (ux < epsilon) {
-        angle = 90.0 * (M_PI / 180) ;
-    } else if (uy < epsilon) {
-        angle = 0.0 * (M_PI / 180);
-    } else {
-        angle = std::atan(uy / ux);
-    }
-
-    ux = std::cos(angle) * essDistance;
-    uy = std::sin(angle) * essDistance;
-}
-
 int32_t& Controller::GetPressedButtons(int32_t portIndex) {
     return mButtonData[portIndex]->PressedButtons;
 }
@@ -299,5 +273,62 @@ double Controller::GetClosestNotch(double angle, double approximationThreshold) 
     const auto closestNotch = std::round(angle / octagonAngle) * octagonAngle;
     const auto distanceToNotch = std::abs(fmod(closestNotch - angle + M_PI, M_TAU) - M_PI);
     return distanceToNotch < approximationThreshold / 2 ? closestNotch : angle;
+}
+
+void Controller::ApplyJoystickInterpolation(double& ux, double& uy, std::vector<int> analogs, std::vector<int> results) {
+    // Find the analog distance from center
+    double distanceFromCenter = std::sqrt(ux * ux + uy * uy);
+
+    // find the correct data for the current analog distance from center
+    // apply interploation
+    double interpolatedDistance = 0.0;
+    auto size = analogs.size();
+    bool hasFoundZone = false;
+    for (int i = 0; i < size - 1; i += 2) {
+        auto analogMin = analogs[i];
+        auto analogMax = analogs[i + 1];
+        auto resultMin = results[i];
+        auto resultMax = results[i + 1];
+        if (distanceFromCenter >= analogMin && distanceFromCenter <= analogMax) {
+            interpolatedDistance = CalculateInerpolationValue(distanceFromCenter, analogMin, analogMax, resultMin,
+                                                                   resultMax, InterpolationType::LINEAR);
+            hasFoundZone = true;
+            break;
+        }
+    }
+
+    if (!hasFoundZone) {
+        interpolatedDistance = results.back();
+    }
+
+    double angle = 0.0;
+    // get angle in rads
+    if (ux < DBL_EPSILON) {
+        angle = 90.0 * (M_PI / 180);
+    } else if (uy < DBL_EPSILON) {
+        angle = 0.0 * (M_PI / 180);
+    } else {
+        angle = std::atan(uy / ux);
+    }
+
+    ux = std::cos(angle) * interpolatedDistance;
+    uy = std::sin(angle) * interpolatedDistance;
+}
+
+double Controller::CalculateInerpolationValue(double v, int analogMin, int analogMax, int resultMin, int resultMax,
+                                              InterpolationType interpolationType) {
+    switch (interpolationType) {
+        case InterpolationType::DEADZONE:
+            return 0;
+        case InterpolationType::LINEAR:
+            return CalculateLinearInterpolation(v, analogMin, analogMax, resultMin, resultMax);
+        default:
+            break;
+    }
+}
+
+double Controller::CalculateLinearInterpolation(double v, int inputMin, int inputMax, int resultMin, int resultMax) {
+    double ratio = (double)(v - inputMin) / (double)(inputMax - inputMin);
+    return std::lerp(resultMin, resultMax, ratio);
 }
 } // namespace LUS
