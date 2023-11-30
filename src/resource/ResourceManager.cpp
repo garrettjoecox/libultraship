@@ -309,6 +309,16 @@ void ResourceManager::UnloadDirectory(const std::string& searchMask) {
     }
 }
 
+void ResourceManager::ExportResource(const std::string& filePath, bool asXML) {
+    auto resource = LoadResource(filePath);
+    if (resource == nullptr) {
+        SPDLOG_ERROR("Failed to export resource file at path {}", filePath);
+        return;
+    }
+
+    GetResourceLoader()->ExportResource(resource, asXML);
+}
+
 std::shared_ptr<Archive> ResourceManager::GetArchive() {
     return mArchive;
 }

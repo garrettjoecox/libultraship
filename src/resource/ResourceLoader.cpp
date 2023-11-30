@@ -40,6 +40,7 @@ bool ResourceLoader::RegisterResourceFactory(ResourceType resourceType, std::str
     mFactories[resourceType] = factory;
     mFactoriesStr[resourceTypeXML] = factory;
     mFactoriesTypes[resourceTypeXML] = resourceType;
+    mFactoriesXMLTypes[resourceType] = resourceTypeXML;
     return true;
 }
 
@@ -127,4 +128,30 @@ std::shared_ptr<IResource> ResourceLoader::LoadResource(std::shared_ptr<File> fi
 
     return result;
 }
+
+void ResourceLoader::ExportResource(std::shared_ptr<IResource> resource, bool asXML) {
+    if (resource != nullptr) {
+        // auto stream = std::make_shared<MemoryStream>();
+        // auto writer = std::make_shared<BinaryWriter>(stream);
+        if (asXML) {
+            tinyxml2::XMLDocument doc;
+            auto writer = doc.NewElement(mFactoriesXMLTypes[resource->GetInitData()->Type].c_str());
+            writer->SetAttribute("Version", resource->GetInitData()->ResourceVersion);
+            doc.InsertFirstChild(writer);
+
+            auto factory = mFactories[resource->GetInitData()->Type];
+
+            if (factory != nullptr) {
+                factory->WriteResourceXML(resource, &doc);
+            }
+
+            auto res = doc.SaveFile(("export/" + resource->GetInitData()->Path).c_str());
+            SPDLOG_INFO("Exported resource {} as XML {}", resource->GetInitData()->Path, res);
+        } else {
+            // TODO
+        }
+    }
+}
+
+        
 } // namespace LUS

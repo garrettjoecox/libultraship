@@ -13,6 +13,7 @@ class ResourceFactory {
                                                     std::shared_ptr<BinaryReader> reader) = 0;
     virtual std::shared_ptr<IResource> ReadResourceXML(std::shared_ptr<ResourceInitData> initData,
                                                        tinyxml2::XMLElement* reader);
+    virtual void WriteResourceXML(std::shared_ptr<IResource> resource, tinyxml2::XMLDocument* writer);
 };
 
 class ResourceVersionFactory {
@@ -20,6 +21,6 @@ class ResourceVersionFactory {
     virtual void ParseFileBinary(std::shared_ptr<BinaryReader> reader, std::shared_ptr<IResource> resource);
     virtual void ParseFileXML(tinyxml2::XMLElement* reader, std::shared_ptr<IResource> resource);
     virtual void WriteFileBinary(std::shared_ptr<BinaryWriter> writer, std::shared_ptr<IResource> resource);
-    virtual void WriteFileXML(tinyxml2::XMLElement* writer, std::shared_ptr<IResource> resource);
+    virtual void WriteFileXML(tinyxml2::XMLDocument* writer, std::shared_ptr<IResource> resource);
 };
 } // namespace LUS

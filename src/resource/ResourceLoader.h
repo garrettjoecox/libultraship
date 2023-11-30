@@ -15,6 +15,7 @@ class ResourceLoader {
     ~ResourceLoader();
 
     std::shared_ptr<IResource> LoadResource(std::shared_ptr<File> fileToLoad);
+    void ExportResource(std::shared_ptr<IResource> resource, bool asXML = true);
     bool RegisterResourceFactory(ResourceType resourceType, std::string resourceTypeXML,
                                  std::shared_ptr<ResourceFactory> factory);
 
@@ -25,5 +26,6 @@ class ResourceLoader {
     std::unordered_map<ResourceType, std::shared_ptr<ResourceFactory>> mFactories;
     std::unordered_map<std::string, std::shared_ptr<ResourceFactory>> mFactoriesStr;
     std::unordered_map<std::string, ResourceType> mFactoriesTypes;
+    std::unordered_map<ResourceType, std::string> mFactoriesXMLTypes;
 };
 } // namespace LUS
