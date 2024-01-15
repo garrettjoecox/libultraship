@@ -2121,10 +2121,10 @@ static void gfx_draw_rectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lr
     float lrxf = lrx;
     float lryf = lry;
 
-    ulxf = ulxf / (4.0f * HALF_SCREEN_WIDTH) - 1.0f;
-    ulyf = -(ulyf / (4.0f * HALF_SCREEN_HEIGHT)) + 1.0f;
-    lrxf = lrxf / (4.0f * HALF_SCREEN_WIDTH) - 1.0f;
-    lryf = -(lryf / (4.0f * HALF_SCREEN_HEIGHT)) + 1.0f;
+    ulxf = ulxf / (4.0f * (CVarGetInteger("gScreenWidth", SCREEN_WIDTH) / 2)) - 1.0f;
+    ulyf = -(ulyf / (4.0f * (CVarGetInteger("gScreenHeight", SCREEN_HEIGHT) / 2))) + 1.0f;
+    lrxf = lrxf / (4.0f * (CVarGetInteger("gScreenWidth", SCREEN_WIDTH) / 2)) - 1.0f;
+    lryf = -(lryf / (4.0f * (CVarGetInteger("gScreenHeight", SCREEN_HEIGHT) / 2))) + 1.0f;
 
     ulxf = gfx_adjust_x_for_aspect_ratio(ulxf);
     lrxf = gfx_adjust_x_for_aspect_ratio(lrxf);
