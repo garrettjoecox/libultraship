@@ -419,6 +419,39 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
     append_line(fs_buf, &fs_len, "    float random = dot(sin(value), vec3(12.9898, 78.233, 37.719));");
     append_line(fs_buf, &fs_len, "    return fract(sin(random) * 143758.5453);");
     append_line(fs_buf, &fs_len, "}");
+    append_line(fs_buf, &fs_len, "float roundToNearestFifth(float value) {");
+    append_line(fs_buf, &fs_len, "    float quantized = ceil(value * 5.0);");
+    append_line(fs_buf, &fs_len, "    return clamp(quantized / 5.0, 0.0, 1.0);");
+    append_line(fs_buf, &fs_len, "}");
+    append_line(fs_buf, &fs_len, "vec3 rgb2hsv(vec3 c) {");
+    append_line(fs_buf, &fs_len, "    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);");
+    append_line(fs_buf, &fs_len, "    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));");
+    append_line(fs_buf, &fs_len, "    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));");
+    append_line(fs_buf, &fs_len, "    float d = q.x - min(q.w, q.y);");
+    append_line(fs_buf, &fs_len, "    float e = 1.0e-10;");
+    append_line(fs_buf, &fs_len, "    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);");
+    append_line(fs_buf, &fs_len, "}");
+    append_line(fs_buf, &fs_len, "vec3 hsv2rgb(vec3 c) {");
+    append_line(fs_buf, &fs_len, "    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);");
+    append_line(fs_buf, &fs_len, "    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);");
+    append_line(fs_buf, &fs_len, "    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);");
+    append_line(fs_buf, &fs_len, "}");
+    append_line(fs_buf, &fs_len, "vec4 averageTextureColor(in sampler2D tex, in vec2 texCoord, in vec2 texSize) {");
+    append_line(fs_buf, &fs_len, "    const int samples = 16;");
+    append_line(fs_buf, &fs_len, "    vec2 stepSize = 1.0 / texSize;");
+    append_line(fs_buf, &fs_len, "    float stepDistance = 4.0;");
+    append_line(fs_buf, &fs_len, "    vec2 middleTexCoord = vec2(0.5);");
+    append_line(fs_buf, &fs_len, "    vec4 sum = vec4(0.0);");
+    append_line(fs_buf, &fs_len, "    for (int i = 0; i < samples; ++i) {");
+    append_line(fs_buf, &fs_len, "        vec2 offset = stepSize * stepDistance * vec2(float(i % 4 - 2), float(i / 4 - 2));");
+    append_line(fs_buf, &fs_len, "        vec2 uv = middleTexCoord + offset;");
+    append_line(fs_buf, &fs_len, "        sum += texture(tex, uv);");
+    append_line(fs_buf, &fs_len, "    }");
+    append_line(fs_buf, &fs_len, "    return sum / float(samples);");
+    append_line(fs_buf, &fs_len, "}");
+    append_line(fs_buf, &fs_len, "float shade1Threshold = 0.3;");
+    append_line(fs_buf, &fs_len, "float shade2Threshold = 0.7;");
+    append_line(fs_buf, &fs_len, "float hue = 0.5 + 0.5 * sin(float(frame_count) / 100.0);");
 
     if (current_filter_mode == FILTER_THREE_POINT) {
 #if defined(__APPLE__) || defined(USE_OPENGLES)
@@ -488,8 +521,53 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
                 }
             }
 
+            //// horizontal scrolling
+            // fs_len += sprintf(fs_buf + fs_len, "vTexCoordAdj%d.x -= float(frame_count) / 100.0;\n", i, i);
+            //// vertical scrolling
+            // fs_len += sprintf(fs_buf + fs_len, "vTexCoordAdj%d.y -= float(frame_count) / 100.0;\n", i, i);
+
             fs_len += sprintf(fs_buf + fs_len, "vec4 texVal%d = hookTexture2D(uTex%d, vTexCoordAdj%d, texSize%d);\n", i,
                               i, i, i);
+
+            //// 90% Average texture color 10% original color
+            // fs_len += sprintf(fs_buf + fs_len, "vec4 avgVal%d = averageTextureColor(uTex%d, vTexCoordAdj%d, texSize%d);\n", i, i, i, i);
+            // fs_len += sprintf(fs_buf + fs_len, "texVal%d.rgb = (texVal%d.rgb * 0.1) + (avgVal%d.rgb * 0.9);\n", i, i);
+            
+            //// 100% Average texture color
+            // fs_len += sprintf(fs_buf + fs_len, "texVal%d.rgb = averageTextureColor(uTex%d, vTexCoordAdj%d, texSize%d).rgb;\n", i, i, i, i);
+
+            //// White world
+            // fs_len += sprintf(fs_buf + fs_len, "texVal%d.rgb = vec3(1.0,1.0,1.0);\n", i);
+
+            //// Apply hue rotation
+            // fs_len += sprintf(fs_buf + fs_len, "vec3 texVal%dHSV = rgb2hsv(texVal%d.rgb);\n", i, i);
+            //// Rotate hue globally 
+            // fs_len += sprintf(fs_buf + fs_len, "texVal%dHSV.x = WRAP(texVal%dHSV.x + hue, 0.0, 1.0);\n", i, i, i);
+            //// Rotate hue based on vertical position
+            // fs_len += sprintf(fs_buf + fs_len, "texVal%dHSV.x = WRAP(texVal%dHSV.x + hue + (vTexCoord%d.y * 0.2), 0.0, 1.0);\n", i, i, i);
+            // fs_len += sprintf(fs_buf + fs_len, "texVal%d.rgb = hsv2rgb(texVal%dHSV);\n", i, i);
+
+
+            //// Clamped/Compressed mode
+            // fs_len += sprintf(fs_buf + fs_len, "texVal%d.r = roundToNearestFifth(texVal%d.r);\n", i, i);
+            // fs_len += sprintf(fs_buf + fs_len, "texVal%d.g = roundToNearestFifth(texVal%d.g);\n", i, i);
+            // fs_len += sprintf(fs_buf + fs_len, "texVal%d.b = roundToNearestFifth(texVal%d.b);\n", i, i);
+
+            //// Shadow based on threshold
+            // fs_len += sprintf(fs_buf + fs_len, "if ((0.299 * texVal%d.r + 0.587 * texVal%d.g + 0.114 * texVal%d.b) < shade1Threshold) {\n", i, i, i);
+            // fs_len += sprintf(fs_buf + fs_len, "  texVal%d.rgb *= 0.5;\n", i);
+            // append_line(fs_buf, &fs_len, "}");
+
+            //// Highlight based on threshold
+            // fs_len += sprintf(fs_buf + fs_len, "if ((0.299 * texVal%d.r + 0.587 * texVal%d.g + 0.114 * texVal%d.b) > shade2Threshold) {\n", i, i, i);
+            // fs_len += sprintf(fs_buf + fs_len, "  texVal%d.rgb *= 1.5;\n", i);
+            // append_line(fs_buf, &fs_len, "}");
+
+            //// Edge detection ?
+            // fs_len += sprintf(fs_buf + fs_len, "vec2 offset%d = vec2(1.0 / texSize%d.y, 0.0);\n", i, i, i, i);
+            // fs_len += sprintf(fs_buf + fs_len, "vec4 neighborTexel%d = hookTexture2D(uTex%d, vTexCoordAdj%d + offset%d, texSize%d);\n", i, i, i, i, i);
+            // fs_len += sprintf(fs_buf + fs_len, "float luminanceDiff%d = abs(dot(texVal%d.rgb, vec3(0.2126, 0.7152, 0.0722)) - dot(neighborTexel%d.rgb, vec3(0.2126, 0.7152, 0.0722)));\n", i, i, i);
+            // fs_len += sprintf(fs_buf + fs_len, "texVal%d.rgb = mix(texVal%d.rgb, vec3(0.0, 0.0, 0.0), luminanceDiff%d * 1.5);\n", i, i, i);
             if (cc_features.used_masks[i]) {
 #ifdef USE_OPENGLES
                 fs_len += sprintf(fs_buf + fs_len, "vec2 maskSize%d = vec2(textureSize(uTexMask%d, 0));\n", i, i);
