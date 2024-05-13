@@ -1360,6 +1360,12 @@ static void gfx_sp_modify_vertex(uint16_t vtx_idx, uint8_t where, uint32_t val) 
     v->v = t;
 }
 
+typedef struct UVInterp {
+    float prevDeltaU, prevDeltaV;
+    uint32_t frame, maxFrame;
+} UVInterp;
+static std::map<const uint8_t *, UVInterp> UVInterpolationMap = {};
+
 static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bool is_rect) {
     struct LoadedVertex* v1 = &g_rsp.loaded_vertices[vtx1_idx];
     struct LoadedVertex* v2 = &g_rsp.loaded_vertices[vtx2_idx];
@@ -1642,8 +1648,39 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bo
                 }
             }
 
-            u -= g_rdp.texture_tile[g_rdp.first_tile_index + t].uls / 4.0f;
-            v -= g_rdp.texture_tile[g_rdp.first_tile_index + t].ult / 4.0f;
+            float deltaU = g_rdp.texture_tile[g_rdp.first_tile_index + t].uls / 4.0f;
+            float deltaV = g_rdp.texture_tile[g_rdp.first_tile_index + t].ult / 4.0f;
+
+            auto ptr = g_rdp.loaded_texture[g_rdp.texture_tile[g_rdp.first_tile_index + t].tmem_index].addr;
+            if (ptr != nullptr) {
+                auto it = UVInterpolationMap.find(ptr);
+                if (it == UVInterpolationMap.end()) {
+                    UVInterpolationMap[ptr] = {
+                        .prevDeltaU = deltaU,
+                        .prevDeltaV = deltaV,
+                        .maxFrame = 1,
+                        .frame = 1,
+                    };
+                }
+                auto prev = &UVInterpolationMap[ptr];
+
+                if (prev->prevDeltaU == deltaU && prev->prevDeltaV == deltaV) {
+                    prev->frame++;
+                    prev->maxFrame = max(prev->maxFrame, prev->frame);
+                } else {
+                    prev->frame = 1;
+                }
+
+                // Interpolate UV coordinates
+                float interp = (float)prev->frame / (float)prev->maxFrame;
+                deltaU = lerp(prev->prevDeltaU, deltaU, interp);
+                deltaV = lerp(prev->prevDeltaV, deltaV, interp);
+
+                prev->prevDeltaU = deltaU;
+                prev->prevDeltaV = deltaV;
+            }
+            u -= deltaU;
+            v -= deltaV;
 
             if ((g_rdp.other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) {
                 // Linear filter adds 0.5f to the coordinates
