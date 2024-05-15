@@ -327,12 +327,7 @@ static void gfx_sdl_init(const char* game_name, const char* gfx_api_name, bool s
 #endif
 
 #ifdef _WIN32
-    // Use high-resolution timer by default on Windows 10 (so that NtSetTimerResolution (...) hacks are not needed)
-    timer = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
-    // Fallback to low resolution timer if unsupported by the OS
-    if (timer == nullptr) {
-        timer = CreateWaitableTimer(nullptr, false, nullptr);
-    }
+    timer = CreateWaitableTimer(nullptr, false, nullptr);
 #endif
 
     char title[512];
@@ -536,11 +531,7 @@ static inline void sync_framerate_with_timer(void) {
     t = qpc_to_100ns(SDL_GetPerformanceCounter());
 
     const int64_t next = previous_time + 10 * FRAME_INTERVAL_US_NUMERATOR / FRAME_INTERVAL_US_DENOMINATOR;
-    int64_t left = next - t;
-#ifdef _WIN32
-    // We want to exit a bit early, so we can busy-wait the rest to never miss the deadline
-    left -= 15000UL;
-#endif
+    const int64_t left = next - t;
     if (left > 0) {
 #ifndef _WIN32
         const timespec spec = { 0, left * 100 };
@@ -554,12 +545,6 @@ static inline void sync_framerate_with_timer(void) {
 #endif
     }
 
-#ifdef _WIN32
-    do {
-        YieldProcessor(); // TODO: Find a way for other compilers, OSes and architectures
-        t = qpc_to_100ns(SDL_GetPerformanceCounter());
-    } while (t < next);
-#endif
     t = qpc_to_100ns(SDL_GetPerformanceCounter());
     if (left > 0 && t - next < 10000) {
         // In case it takes some time for the application to wake up after sleep,
