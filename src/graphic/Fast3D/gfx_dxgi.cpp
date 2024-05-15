@@ -674,7 +674,7 @@ static void gfx_dxgi_swap_buffers_end(void) {
     QueryPerformanceCounter(&t1);
 
     if (dxgi.applied_maximum_frame_latency > dxgi.maximum_frame_latency ||
-        dxgi.is_vsync_enabled != CVarGetInteger("gVsyncEnabled", 1)) {
+        dxgi.is_vsync_enabled != Ship::Context::GetInstance()->GetConsoleVariables()->GetInteger(CVAR_VSYNC_ENABLED, 1)) {
         // There seems to be a bug that if latency is decreased, there is no effect of that operation, so recreate
         // swap chain
         if (dxgi.waitable_object != nullptr) {
@@ -688,7 +688,7 @@ static void gfx_dxgi_swap_buffers_end(void) {
 
         dxgi.before_destroy_swap_chain_fn();
         dxgi.swap_chain.Reset();
-        dxgi.is_vsync_enabled = CVarGetInteger("gVsyncEnabled", 1);
+        dxgi.is_vsync_enabled = Ship::Context::GetInstance()->GetConsoleVariables()->GetInteger(CVAR_VSYNC_ENABLED, 1);
         gfx_dxgi_create_swap_chain(dxgi.swap_chain_device.Get(), move(dxgi.before_destroy_swap_chain_fn));
 
         dxgi.frame_timestamp = 0;
