@@ -44,6 +44,9 @@ void gfx_cc_get_features(uint64_t shader_id0, uint32_t shader_id1, struct CCFeat
                 }
                 if (cc_features->c[c][i][j] == SHADER_TEXEL1 || cc_features->c[c][i][j] == SHADER_TEXEL1A) {
                     cc_features->used_textures[1] = true;
+                    if (cc_features->opt_2cyc) {
+                        cc_features->used_textures[0] = true;
+                    }
                 }
             }
         }
