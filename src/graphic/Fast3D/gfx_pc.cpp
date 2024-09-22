@@ -1685,6 +1685,8 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bo
                 }
             }
 
+            u += CVarGetFloat("ChaosUVOffset", 0.0f) * tex_width[t];
+
             buf_vbo[buf_vbo_len++] = u / tex_width[t];
             buf_vbo[buf_vbo_len++] = v / tex_height[t];
 
