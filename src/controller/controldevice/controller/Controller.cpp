@@ -141,6 +141,11 @@ void Controller::ReadToPad(OSContPad* pad) {
     // Gyro
     GetGyro()->UpdatePad(padToBuffer.gyro_x, padToBuffer.gyro_y);
 
+    int mouseData[2];
+    SDL_GetRelativeMouseState(&mouseData[0], &mouseData[1]);
+    padToBuffer.gyro_x = (mouseData[1]) * -0.05f;
+    padToBuffer.gyro_y = (mouseData[0]) * -0.05f;
+
     mPadBuffer.push_front(padToBuffer);
     if (pad != nullptr) {
         auto& padFromBuffer =

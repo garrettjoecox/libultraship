@@ -78,8 +78,10 @@ void ControlDeck::WriteToPad(OSContPad* pad) {
     SDL_PumpEvents();
 
     if (AllGameInputBlocked()) {
+        SDL_SetRelativeMouseMode(SDL_FALSE);
         return;
     }
+    SDL_SetRelativeMouseMode(SDL_TRUE);
 
     mPads = pad;
 
