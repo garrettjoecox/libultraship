@@ -48,6 +48,8 @@ static inline void* seg_addr(uintptr_t w1) {
 
 #define C0(pos, width) ((cmd->words.w0 >> (pos)) & ((1U << width) - 1))
 #define C1(pos, width) ((cmd->words.w1 >> (pos)) & ((1U << width) - 1))
+#define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
+#define _SHIFTR(v, s, w) ((u32)(((u32)(v) >> (s)) & ((0x01 << (w)) - 1)))
 
 // static int s_dbgcnt = 0;
 void GfxDebuggerWindow::DrawDisasNode(const F3DGfx* cmd, std::vector<const F3DGfx*>& gfxPath,
@@ -152,8 +154,46 @@ void GfxDebuggerWindow::DrawDisasNode(const F3DGfx* cmd, std::vector<const F3DGf
 
     while (true) {
         int8_t opcode = (int8_t)(cmd->words.w0 >> 24);
-        const F3DGfx* cmd0 = cmd;
+        F3DGfx* cmd0 = (F3DGfx*)cmd;
         switch (opcode) {
+
+            case RDP_G_SETPRIMCOLOR: {
+                simpleNode(cmd0, opcode);
+                ImGui::SameLine();
+                uint8_t r = _SHIFTR(cmd0->words.w1, 24, 8);
+                uint8_t g = _SHIFTR(cmd0->words.w1, 16, 8);
+                uint8_t b = _SHIFTR(cmd0->words.w1, 8, 8);
+                uint8_t a = _SHIFTR(cmd0->words.w1, 0, 8);
+
+                float cf[] = { r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f };
+                if (ImGui::ColorEdit4("##Color", cf, ImGuiColorEditFlags_NoInputs)) {
+                    cmd0->words.w1 = _SHIFTL((uint32_t)(cf[0] * 255), 24, 8) |
+                                    _SHIFTL((uint32_t)(cf[1] * 255), 16, 8) |
+                                    _SHIFTL((uint32_t)(cf[2] * 255), 8, 8) |
+                                    _SHIFTL((uint32_t)(cf[3] * 255), 0, 8);
+                }
+                cmd++;
+                break;
+            }
+
+            case RDP_G_SETENVCOLOR: {
+                simpleNode(cmd0, opcode);
+                ImGui::SameLine();
+                uint8_t r = _SHIFTR(cmd0->words.w1, 24, 8);
+                uint8_t g = _SHIFTR(cmd0->words.w1, 16, 8);
+                uint8_t b = _SHIFTR(cmd0->words.w1, 8, 8);
+                uint8_t a = _SHIFTR(cmd0->words.w1, 0, 8);
+
+                float cf[] = { r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f };
+                if (ImGui::ColorEdit4("##EnvColor", cf, ImGuiColorEditFlags_NoInputs)) {
+                    cmd0->words.w1 = _SHIFTL((uint32_t)(cf[0] * 255), 24, 8) |
+                                    _SHIFTL((uint32_t)(cf[1] * 255), 16, 8) |
+                                    _SHIFTL((uint32_t)(cf[2] * 255), 8, 8) |
+                                    _SHIFTL((uint32_t)(cf[3] * 255), 0, 8);
+                }
+                cmd++;
+                break;
+            }
 
 #ifdef F3DEX_GBI_2
             case F3DEX2_G_NOOP: {
