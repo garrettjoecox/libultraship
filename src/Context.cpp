@@ -137,7 +137,7 @@ bool Context::InitLogging() {
         auto logPath = GetPathRelativeToAppDirectory(("logs/" + GetName() + ".log"));
         auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(logPath, 1024 * 1024 * 10, 10);
 #ifdef _DEBUG
-        fileSink->set_level(spdlog::level::trace);
+        fileSink->set_level(spdlog::level::info);
 #else
         fileSink->set_level(spdlog::level::debug);
 #endif
@@ -146,16 +146,16 @@ bool Context::InitLogging() {
         mLogger = std::make_shared<spdlog::async_logger>(GetName(), sinks.begin(), sinks.end(), spdlog::thread_pool(),
                                                          spdlog::async_overflow_policy::block);
 #ifdef _DEBUG
-        GetLogger()->set_level(spdlog::level::trace);
+        GetLogger()->set_level(spdlog::level::info);
 #else
         GetLogger()->set_level(spdlog::level::debug);
 #endif
 
 #if defined(_DEBUG)
-        GetLogger()->flush_on(spdlog::level::trace);
+        GetLogger()->flush_on(spdlog::level::info);
 #endif
 
-        GetLogger()->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%@] [%l] %v");
+        GetLogger()->set_pattern("[%H:%M:%S.%e] [%l] %v");
 
         spdlog::register_logger(GetLogger());
         spdlog::set_default_logger(GetLogger());

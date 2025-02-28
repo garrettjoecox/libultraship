@@ -48,15 +48,15 @@ std::shared_ptr<Gui> Window::GetGui() {
 void Window::SaveWindowToConfig() {
     // This accepts conf in because it can be run in the destruction of LUS.
     mConfig->SetBool("Window.Fullscreen.Enabled", IsFullscreen());
-    if (IsFullscreen()) {
-        mConfig->SetInt("Window.Fullscreen.Width", (int32_t)GetWidth());
-        mConfig->SetInt("Window.Fullscreen.Height", (int32_t)GetHeight());
-    } else {
-        mConfig->SetInt("Window.Width", (int32_t)GetWidth());
-        mConfig->SetInt("Window.Height", (int32_t)GetHeight());
-        mConfig->SetInt("Window.PositionX", GetPosX());
-        mConfig->SetInt("Window.PositionY", GetPosY());
-    }
+    // if (IsFullscreen()) {
+    //     mConfig->SetInt("Window.Fullscreen.Width", (int32_t)GetWidth());
+    //     mConfig->SetInt("Window.Fullscreen.Height", (int32_t)GetHeight());
+    // } else {
+    //     mConfig->SetInt("Window.Width", (int32_t)GetWidth());
+    //     mConfig->SetInt("Window.Height", (int32_t)GetHeight());
+    //     mConfig->SetInt("Window.PositionX", GetPosX());
+    //     mConfig->SetInt("Window.PositionY", GetPosY());
+    // }
 }
 
 WindowBackend Window::GetWindowBackend() {
