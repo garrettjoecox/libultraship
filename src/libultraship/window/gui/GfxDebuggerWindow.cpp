@@ -44,22 +44,56 @@ void GfxDebuggerWindow::DrawDisasNode(const F3DGfx* cmd, std::vector<const F3DGf
     const F3DGfx* dlStart = cmd;
     auto dbg = Ship::Context::GetInstance()->GetGfxDebugger();
 
-    auto nodeWithText = [dbg, dlStart, parentPosY, this, &gfxPath](const F3DGfx* cmd, const std::string& text,
+    // Helper function to check if first child is G_MARKER and get its name
+    auto getMarkerName = [](const F3DGfx* sub) -> std::string {
+        if (sub == nullptr) {
+            return "";
+        }
+        int8_t opcode = (int8_t)(sub->words.w0 >> 24);
+        if (opcode == OTR_G_MARKER) {
+            const F3DGfx* markerCmd = sub + 1;
+            uint64_t hash = ((uint64_t)markerCmd->words.w0 << 32) + markerCmd->words.w1;
+            const char* dlName = ResourceGetNameByCrc(hash);
+            if (dlName) {
+                return std::string(dlName);
+            }
+        }
+        return "";
+    };
+
+    auto nodeWithText = [dbg, dlStart, parentPosY, this, &gfxPath, &getMarkerName](const F3DGfx* cmd, const std::string& text,
                                                                    const F3DGfx* sub = nullptr) mutable {
+        // Skip nodes without children if filter is enabled
+        if (mFilterShowOnlyParents && sub == nullptr) {
+            return;
+        }
+        
+        // Append marker name if child has G_MARKER as first command
+        std::string markerName = getMarkerName(sub);
+        std::string displayText = markerName.empty() ? text : markerName;
+        
         gfxPath.push_back(cmd);
 
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow;
-        if (dbg->HasBreakPoint(gfxPath)) {
-            flags |= ImGuiTreeNodeFlags_Selected;
-        }
+        bool hasBreakpoint = dbg->HasBreakPoint(gfxPath);
         if (sub == nullptr) {
             flags |= ImGuiTreeNodeFlags_Leaf;
+        }
+
+        // Draw a visual separator above the breakpoint item to indicate execution stopped before this command
+        if (hasBreakpoint) {
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+            ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+            ImVec2 lineStart = ImVec2(cursorPos.x, cursorPos.y);
+            ImVec2 lineEnd = ImVec2(cursorPos.x + ImGui::GetContentRegionAvail().x, cursorPos.y);
+            drawList->AddLine(lineStart, lineEnd, IM_COL32(0, 120, 255, 255), 3.0f);
+            ImGui::Dummy(ImVec2(0.0f, 3.0f)); // Add spacing for the line
         }
 
         bool scrollTo = false;
         float curPosY = ImGui::GetCursorPosY();
         bool open = ImGui::TreeNodeEx((const void*)cmd, flags, "%p:%4d: %s", cmd,
-                                      (int)(((uintptr_t)cmd - (uintptr_t)dlStart) / sizeof(F3DGfx)), text.c_str());
+                                      (int)(((uintptr_t)cmd - (uintptr_t)dlStart) / sizeof(F3DGfx)), displayText.c_str());
 
         if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
             dbg->SetBreakPoint(gfxPath);
@@ -67,7 +101,7 @@ void GfxDebuggerWindow::DrawDisasNode(const F3DGfx* cmd, std::vector<const F3DGf
 
         if (ImGui::BeginPopupContextItem(nullptr, ImGuiPopupFlags_MouseButtonRight)) {
             if (ImGui::Selectable("Copy text")) {
-                SDL_SetClipboardText(text.c_str());
+                SDL_SetClipboardText(displayText.c_str());
             }
             if (ImGui::Selectable("Copy address")) {
                 std::string address = fmt::format("0x{:x}", (uintptr_t)cmd);
@@ -685,6 +719,8 @@ void GfxDebuggerWindow::DrawDisas() {
     }
     ImGui::EndChild();
 
+    ImGui::Checkbox("Show Only Parents", &mFilterShowOnlyParents);
+    
     ImGui::BeginChild("##Disassembler", ImVec2(0.0f, 0.0f), true);
     {
         std::vector<const F3DGfx*> gfxPath;
