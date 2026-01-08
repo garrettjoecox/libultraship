@@ -28,6 +28,7 @@ class GfxDebuggerWindow : public Ship::GuiWindow {
   private:
     std::vector<const Fast::F3DGfx*> mLastBreakPoint = {};
     std::weak_ptr<Fast::Interpreter> mInterpreter;
+    bool mFilterShowOnlyParents = false;
 };
 
 } // namespace LUS
